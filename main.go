@@ -41,7 +41,7 @@ func logd(s string, args ...interface{}) {
 type visitor struct {
 	pos token.Pos
 	err error
-	fd  *ast.FuncDecl
+	ft  *ast.FuncType
 	fn  string
 }
 
@@ -49,25 +49,41 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 	if node == nil {
 		return nil
 	}
-	fd, ok := node.(*ast.FuncDecl)
-	if !ok {
+	switch x := node.(type) {
+	case *ast.FuncDecl:
+		x, ok := node.(*ast.FuncDecl)
+		if !ok {
+			return v
+		}
+		fname := noname
+		if x.Name != nil {
+			fname = x.Name.Name
+		}
+		fname = x.Name.Name
+		if v.pos < x.Pos() || v.pos > x.End() {
+			return nil
+		}
+		if x.Type == nil {
+			return v
+		}
+		v.fn = fname
+		v.ft = x.Type
+		logd("found a FuncDecl: name=%s pos=%d end=%d", v.fn, x.Pos(), x.End())
+		return v
+	case *ast.FuncLit:
+		if x.Type == nil || x.Body == nil {
+			return nil
+		}
+		if v.pos < x.Pos() || v.pos > x.End() {
+			return nil
+		}
+		v.fn = noname
+		v.ft = x.Type
+		logd("found a FuncLit: pos=%d end=%d", x.Pos(), x.End())
+		return v
+	default:
 		return v
 	}
-	fname := noname
-	if fd.Name != nil {
-		fname = fd.Name.Name
-	}
-	fname = fd.Name.Name
-	logd("found a func: name=%s pos=%d end=%d", fname, fd.Pos(), fd.End())
-	if v.pos < fd.Pos() || v.pos > fd.End() {
-		return nil
-	}
-	if fd.Type == nil {
-		return v
-	}
-	v.fn = fname
-	v.fd = fd
-	return v
 }
 
 type field struct {
@@ -177,10 +193,10 @@ func iferr(w io.Writer, r io.Reader, pos int) error {
 	if v.err != nil {
 		return err
 	}
-	if v.fd == nil {
+	if v.ft == nil {
 		return fmt.Errorf("no functions at %d", pos)
 	}
-	types := toTypes(v.fd.Type.Results)
+	types := toTypes(v.ft.Results)
 	return writeIferr(w, types)
 }
 
