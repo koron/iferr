@@ -8,11 +8,14 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"log"
 	"os"
 	"strings"
 )
 
 const noname = "(no name)"
+
+var dbgLog *log.Logger
 
 var isNum = map[string]struct{}{
 	"int":     struct{}{},
@@ -26,6 +29,13 @@ var isNum = map[string]struct{}{
 	"float":   struct{}{},
 	"float32": struct{}{},
 	"float64": struct{}{},
+}
+
+func logd(s string, args ...interface{}) {
+	if dbgLog == nil {
+		return
+	}
+	dbgLog.Printf(s, args...)
 }
 
 type visitor struct {
@@ -48,6 +58,7 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		fname = fd.Name.Name
 	}
 	fname = fd.Name.Name
+	logd("found a func: name=%s pos=%d end=%d", fname, fd.Pos(), fd.End())
 	if v.pos < fd.Pos() || v.pos > fd.End() {
 		return nil
 	}
@@ -86,6 +97,16 @@ func typeString(x ast.Expr) string {
 		return "*" + typeString(t.X)
 	case *ast.ArrayType:
 		return "[]" + typeString(t.Elt)
+	case *ast.InterfaceType:
+		return "interface{}"
+	case *ast.MapType:
+		return "map[" + typeString(t.Key) + "]" + typeString(t.Value)
+	case *ast.StructType:
+		return "struct{}"
+	case *ast.ChanType:
+		return "chan " + typeString(t.Value)
+	default:
+		logd("typeString: unsupported type: %T", x)
 	}
 	return ""
 }
@@ -102,6 +123,7 @@ func writeIferr(w io.Writer, types []ast.Expr) error {
 			bb.WriteString(", ")
 		}
 		ts := typeString(t)
+		logd("  type#%d %s", i, ts)
 		if ts == "error" {
 			bb.WriteString("err")
 			continue
@@ -110,11 +132,23 @@ func writeIferr(w io.Writer, types []ast.Expr) error {
 			bb.WriteString(`""`)
 			continue
 		}
+		if ts == "interface{}" {
+			bb.WriteString(`nil`)
+			continue
+		}
 		if _, ok := isNum[ts]; ok {
 			bb.WriteString("0")
 			continue
 		}
 		if strings.HasPrefix(ts, "[]") {
+			bb.WriteString("nil")
+			continue
+		}
+		if strings.HasPrefix(ts, "map[") {
+			bb.WriteString("nil")
+			continue
+		}
+		if strings.HasPrefix(ts, "chan ") {
 			bb.WriteString("nil")
 			continue
 		}
@@ -152,10 +186,15 @@ func iferr(w io.Writer, r io.Reader, pos int) error {
 
 func main() {
 	var (
-		pos int
+		pos   int
+		debug bool
 	)
 	flag.IntVar(&pos, "pos", 0, "position of cursor")
+	flag.BoolVar(&debug, "debug", false, "enable debug log")
 	flag.Parse()
+	if debug {
+		dbgLog = log.New(os.Stderr, "D ", 0)
+	}
 	err := iferr(os.Stdout, os.Stdin, pos)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
