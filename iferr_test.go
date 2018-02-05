@@ -56,4 +56,5 @@ func TestIferr(t *testing.T) {
 	iferrOK(t, `(interface{}, error)`, 0, `nil, err`)
 	iferrOK(t, `(map[string]struct{}, error)`, 0, `nil, err`)
 	iferrOK(t, `(chan bool, error)`, 0, `nil, err`)
+	iferrOK(t, `(bool, error)`, 0, `false, err`)
 }

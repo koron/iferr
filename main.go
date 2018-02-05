@@ -140,6 +140,10 @@ func writeIferr(w io.Writer, types []ast.Expr) error {
 		}
 		ts := typeString(t)
 		logd("  type#%d %s", i, ts)
+		if ts == "bool" {
+			bb.WriteString(`false`)
+			continue
+		}
 		if ts == "error" {
 			bb.WriteString("err")
 			continue
