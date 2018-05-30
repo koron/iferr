@@ -9,6 +9,9 @@ import (
 	"testing"
 )
 
+type foo struct {
+}
+
 func init() {
 	var debug bool
 	flag.BoolVar(&debug, "debug", false, "enable debug log")
@@ -57,4 +60,6 @@ func TestIferr(t *testing.T) {
 	iferrOK(t, `(map[string]struct{}, error)`, 0, `nil, err`)
 	iferrOK(t, `(chan bool, error)`, 0, `nil, err`)
 	iferrOK(t, `(bool, error)`, 0, `false, err`)
+	iferrOK(t, `(foo, error)`, 0, `foo{}, err`)
+	iferrOK(t, `(*foo, error)`, 0, `nil, err`)
 }

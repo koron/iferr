@@ -172,6 +172,10 @@ func writeIferr(w io.Writer, types []ast.Expr) error {
 			bb.WriteString("nil")
 			continue
 		}
+		if strings.HasPrefix(ts, "*") {
+			bb.WriteString("nil")
+			continue
+		}
 		// treat it as an interface when type name has "."
 		if strings.Index(ts, ".") >= 0 {
 			bb.WriteString("nil")
