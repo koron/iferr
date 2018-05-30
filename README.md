@@ -21,7 +21,7 @@ if err != nil {
 
 ## Vim plugin
 
-Copy `vim/ftplugin/iferr.vim` as `~/.vim/ftplugin/iferr.vim`.
+Copy `vim/ftplugin/go/iferr.vim` as `~/.vim/ftplugin/go/iferr.vim`.
 
 It defines `:IfErr` command for go filetype. It will insert `if err != nil {`
 block at next line of the cursor.
