@@ -18,17 +18,17 @@ const noname = "(no name)"
 var dbgLog *log.Logger
 
 var isNum = map[string]struct{}{
-	"int":     struct{}{},
-	"int16":   struct{}{},
-	"int32":   struct{}{},
-	"int64":   struct{}{},
-	"uint":    struct{}{},
-	"uint16":  struct{}{},
-	"uint32":  struct{}{},
-	"uint64":  struct{}{},
-	"float":   struct{}{},
-	"float32": struct{}{},
-	"float64": struct{}{},
+	"int":     {},
+	"int16":   {},
+	"int32":   {},
+	"int64":   {},
+	"uint":    {},
+	"uint16":  {},
+	"uint32":  {},
+	"uint64":  {},
+	"float":   {},
+	"float32": {},
+	"float64": {},
 }
 
 func logd(s string, args ...interface{}) {
@@ -127,7 +127,7 @@ func typeString(x ast.Expr) string {
 	return ""
 }
 
-func writeIferr(w io.Writer, types []ast.Expr) error {
+func writeIferr(w io.Writer, types []ast.Expr, errMsg string) error {
 	if len(types) == 0 {
 		_, err := fmt.Fprint(w, "if err != nil {\n\treturn\n}\n")
 		return err
@@ -145,7 +145,7 @@ func writeIferr(w io.Writer, types []ast.Expr) error {
 			continue
 		}
 		if ts == "error" {
-			bb.WriteString("err")
+			bb.WriteString(errMsg)
 			continue
 		}
 		if ts == "string" {
@@ -190,7 +190,7 @@ func writeIferr(w io.Writer, types []ast.Expr) error {
 	return nil
 }
 
-func iferr(w io.Writer, r io.Reader, pos int) error {
+func iferr(w io.Writer, r io.Reader, pos int, errMsg string) error {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "iferr.go", r, 0)
 	if err != nil {
@@ -205,21 +205,23 @@ func iferr(w io.Writer, r io.Reader, pos int) error {
 		return fmt.Errorf("no functions at %d", pos)
 	}
 	types := toTypes(v.ft.Results)
-	return writeIferr(w, types)
+	return writeIferr(w, types, errMsg)
 }
 
 func main() {
 	var (
-		pos   int
-		debug bool
+		pos    int
+		debug  bool
+		errMsg string
 	)
 	flag.IntVar(&pos, "pos", 0, "position of cursor")
 	flag.BoolVar(&debug, "debug", false, "enable debug log")
+	flag.StringVar(&errMsg, "message", "err", "choose a custom error message")
 	flag.Parse()
 	if debug {
 		dbgLog = log.New(os.Stderr, "D ", 0)
 	}
-	err := iferr(os.Stdout, os.Stdin, pos)
+	err := iferr(os.Stdout, os.Stdin, pos, errMsg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)

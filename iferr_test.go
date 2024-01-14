@@ -2,36 +2,21 @@ package main
 
 import (
 	"bytes"
-	"flag"
-	"log"
-	"os"
 	"strings"
 	"testing"
 )
 
-type foo struct {
-}
-
-func init() {
-	var debug bool
-	flag.BoolVar(&debug, "debug", false, "enable debug log")
-	flag.Parse()
-	if debug {
-		dbgLog = log.New(os.Stderr, "D ", 0)
-	}
-}
-
-func iferrStr(in string, pos int) (string, error) {
+func iferrStr(in string, pos int, errMsg string) (string, error) {
 	out := &bytes.Buffer{}
 	r := strings.NewReader(in)
-	err := iferr(out, r, pos)
+	err := iferr(out, r, pos, errMsg)
 	if err != nil {
 		return "", err
 	}
 	return out.String(), nil
 }
 
-func iferrOK(t *testing.T, fn string, off int, exp string) {
+func iferrOK(t *testing.T, fn string, off int, errMsg, exp string) {
 	const (
 		fnPre   = "package main\nfunc foo() "
 		fnPost  = " {}"
@@ -39,7 +24,7 @@ func iferrOK(t *testing.T, fn string, off int, exp string) {
 		actPost = "\n}\n"
 	)
 
-	act, err := iferrStr(fnPre+fn, len(fnPre)+1+off)
+	act, err := iferrStr(fnPre+fn, len(fnPre)+1+off, errMsg)
 	if err != nil {
 		t.Errorf("iferr() is failed: %s for %q", err, fn)
 		return
@@ -56,10 +41,14 @@ func iferrOK(t *testing.T, fn string, off int, exp string) {
 }
 
 func TestIferr(t *testing.T) {
-	iferrOK(t, `(interface{}, error)`, 0, `nil, err`)
-	iferrOK(t, `(map[string]struct{}, error)`, 0, `nil, err`)
-	iferrOK(t, `(chan bool, error)`, 0, `nil, err`)
-	iferrOK(t, `(bool, error)`, 0, `false, err`)
-	iferrOK(t, `(foo, error)`, 0, `foo{}, err`)
-	iferrOK(t, `(*foo, error)`, 0, `nil, err`)
+	iferrOK(t, `(interface{}, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(map[string]struct{}, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(chan bool, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(bool, error)`, 0, `err`, `false, err`)
+	iferrOK(t, `(foo, error)`, 0, `err`, `foo{}, err`)
+	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(*foo, error)`, 0, `fmt.Errorf("failed to %v", err)`, `nil, fmt.Errorf("failed to %v", err)`)
 }
