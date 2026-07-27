@@ -18,17 +18,24 @@ const noname = "(no name)"
 var dbgLog *log.Logger
 
 var isNum = map[string]struct{}{
-	"int":           {},
-	"int16":         {},
-	"int32":         {},
-	"int64":         {},
-	"uint":          {},
-	"uint16":        {},
-	"uint32":        {},
-	"uint64":        {},
-	"float":         {},
-	"float32":       {},
-	"float64":       {},
+	"int":        {},
+	"int8":       {},
+	"int16":      {},
+	"int32":      {},
+	"int64":      {},
+	"uint":       {},
+	"uint8":      {},
+	"uint16":     {},
+	"uint32":     {},
+	"uint64":     {},
+	"float":      {},
+	"float32":    {},
+	"float64":    {},
+	"complex64":  {},
+	"complex128": {},
+	"byte":       {},
+	"rune":       {},
+
 	"time.Duration": {},
 }
 
