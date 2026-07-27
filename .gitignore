@@ -1,4 +1,7 @@
-iferr
-iferr.exe
+*~
+default.pgo
 tags
 tmp/
+
+iferr
+iferr.exe

@@ -1,5 +1,9 @@
 # Generate "if err != nil {" block
 
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/koron/iferr)](https://pkg.go.dev/github.com/koron/iferr)
+[![Actions/Go](https://github.com/koron/iferr/actions/workflows/go.yml/badge.svg)](https://github.com/koron/iferr/actions/workflows/go.yml)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/koron/iferr)
+
 Generate `if err != nil {` block for current function.
 
 ## Usage
