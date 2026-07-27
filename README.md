@@ -23,13 +23,6 @@ if err != nil {
 }
 ```
 
-```console
-$ iferr -pos 1234 < main.go
-if err != nil {
-	return ""
-}
-```
-
 Customize your error message:
 ```console
 $ iferr -pos 110 -message 'fmt.Errorf("failed to %w", err)' < main.go
