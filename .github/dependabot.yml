@@ -1,0 +1,16 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+
+updates:
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      go-all-dependencies:
+        patterns: ["*"]
+
+# $Hash:0ce5644667fe90c6d9b01d3e6dcdad0c6efbb981aac4f885fe0fb8c6$

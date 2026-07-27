@@ -1,0 +1,208 @@
+name: Go
+
+on: [push]
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: 'oldstable'
+
+jobs:
+
+  check:
+    name: Check main packages
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v7
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: List "main" packages to be released
+      id: list
+      shell: bash
+      run: |
+        found=0
+        echo "targets<<__END__" >> "$GITHUB_OUTPUT"
+        main_packages=$(go list -f '{{if (eq .Name "main")}}{{.ImportPath}} .{{slice .ImportPath (len .Module.Path)}}{{end}}' ./...)
+        while read -r path dir; do
+          [ -z "$path" ] && continue
+          name=$(basename "$path")
+          if [ -f "$dir/.norelease" ] ; then
+            printf "Skipped %s\t(%s), due to %s/.norelease found\n" "$name" "$dir" "$dir"
+          else
+            found=1
+            echo "$name $dir $path" >> "$GITHUB_OUTPUT"
+            printf "Added   %s\t(%s) to the release\n" "$name" "$dir"
+          fi
+        done <<EOF
+        $main_packages
+        EOF
+        echo "__END__" >> "$GITHUB_OUTPUT"
+        if [ $found -eq 0 ] ; then
+          echo "⛔ No packages found to release"
+        fi
+
+  build:
+    name: Build
+
+    needs: check
+
+    env:
+      RELEASE_TARGETS: ${{needs.check.outputs.targets}}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - { os: darwin,  arch: amd64, runner: macos-latest,     }
+        - { os: darwin,  arch: arm64, runner: macos-latest,     }
+        - { os: freebsd, arch: amd64, runner: ubuntu-latest,    }
+        - { os: linux,   arch: arm64, runner: ubuntu-24.04-arm, }
+        - { os: linux,   arch: amd64, runner: ubuntu-latest,    }
+        - { os: windows, arch: amd64, runner: windows-latest,   }
+
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'freebsd' && 'freebsd {0}' || 'bash' }}
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-go@v7
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Setup env
+      id: setup
+      shell: bash
+      run: |
+        NAME="${GITHUB_REPOSITORY#${GITHUB_REPOSITORY_OWNER}/}"
+
+        GOOS=${{ matrix.os }}
+        GOARCH=${{ matrix.arch }}
+
+        if [[ ${GITHUB_REF} =~ ^refs/tags/v[0-9]+\.[0-9]+ ]] ; then
+          VERSION=${GITHUB_REF_NAME}
+        else
+          VERSION=SNAPSHOT
+        fi
+
+        case ${{ matrix.os }} in
+          linux|freebsd)  PKGEXT=.tar.gz ;;
+          darwin|windows) PKGEXT=.zip ;;
+        esac
+
+        case ${{ matrix.os }} in
+          windows) choco install zip ;;
+        esac
+
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        echo "GOOS=${GOOS}" >> $GITHUB_ENV
+        echo "GOARCH=${GOARCH}" >> $GITHUB_ENV
+        echo "CGO_ENABLED=1" >> $GITHUB_ENV
+        echo "PKGNAME=${NAME}_${VERSION}_${GOOS}_${GOARCH}" >> $GITHUB_ENV
+        echo "PKGEXT=${PKGEXT}" >> $GITHUB_ENV
+
+    - name: Start FreeBSD VM
+      if: matrix.os == 'freebsd'
+      uses: vmactions/freebsd-vm@77ed28d336d03fe19a3f4f7266c1d2c4714dd79d # v1.5.2
+      with:
+        usesh: true
+        copyback: false
+        disable-cache: true
+        arch: ${{ matrix.arch }}
+
+        envs: 'RELEASE_TARGETS PKGNAME PKGEXT'
+
+        prepare: |
+          echo "::group::Install Go"
+          pkg install -y go
+
+    - name: Test all
+      run: |
+        go test ./...
+
+    - name: Build all "main" packages
+      if: needs.check.outputs.targets != ''
+      run: |
+        while read -r name dir path ; do
+          printf "building %s\t(%s)\n" "$name" "$dir"
+          ( cd "$dir" && go build )
+        done <<EOF
+        $RELEASE_TARGETS
+        EOF
+
+    - name: Copyback from FreeBSD VM
+      if: matrix.os == 'freebsd' && needs.check.outputs.targets != ''
+      shell: bash
+      run: |
+        rsync -av --exclude .git -e ssh "freebsd:$HOME/work/" "$HOME/work/"
+
+    - name: Archive
+      if: needs.check.outputs.targets != ''
+      shell: bash
+      run: |
+        mkdir -p _build/${PKGNAME}
+
+        while read -r name dir path ; do
+          cp "$dir/$name" _build/${PKGNAME}
+        done <<EOF
+        $RELEASE_TARGETS
+        EOF
+
+        cp -p LICENSE _build/${PKGNAME}
+        cp -p README.md _build/${PKGNAME}
+
+        case "${PKGEXT}" in
+          ".tar.gz")
+            tar caf _build/${PKGNAME}${PKGEXT} -C _build ${PKGNAME}
+            ;;
+          ".zip")
+            (cd _build && zip -r9q ${PKGNAME}${PKGEXT} ${PKGNAME})
+            ;;
+        esac
+        ls -laFR _build
+
+    - name: Artifact upload
+      if: needs.check.outputs.targets != ''
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-${{ env.GOOS }}_${{ env.GOARCH }}
+        path: _build/${{ env.PKGNAME }}${{ env.PKGEXT }}
+
+  create-release:
+    name: Create release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+    - build
+    steps:
+    - uses: actions/download-artifact@v8
+      with:
+        pattern: release-*
+        merge-multiple: true
+    - run: ls -lafR
+    - name: Release
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+      with:
+        draft: true
+        prerelease: ${{ contains(github.ref_name, '-alpha.') || contains(github.ref_name, '-beta.') }}
+        files: |
+          *.tar.gz
+          *.zip
+        fail_on_unmatched_files: ${{ needs.check.outputs.targets != '' }}
+        generate_release_notes: true
+        append_body: true
+
+# based on: github.com/koron-go/_skeleton/.github/workflows/go.yml
+# $Hash:0475ee83d423e04e31d296083e06a755c63ebb4b3efe33f336275953$
