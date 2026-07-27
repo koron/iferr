@@ -4,6 +4,9 @@ function! s:IfErr()
   let bpos = wordcount()['cursor_bytes']
   let out = systemlist('iferr -pos ' . bpos, bufnr('%'))
   if len(out) == 1
+    echohl  ErrorMsg
+    echomsg "Failed: " . out[0]
+    echohl  None
     return
   endif
   let pos = getcurpos()
