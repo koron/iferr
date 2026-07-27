@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -16,7 +17,9 @@ func iferrStr(in string, pos int, errMsg string) (string, error) {
 	return out.String(), nil
 }
 
-func iferrOK(t *testing.T, fn string, off int, errMsg, exp string) {
+func iferrOK(t *testing.T, fn string, off int, errMsg, want string) {
+	t.Helper()
+
 	const (
 		fnPre   = "package main\nfunc foo() "
 		fnPost  = " {}"
@@ -24,18 +27,18 @@ func iferrOK(t *testing.T, fn string, off int, errMsg, exp string) {
 		actPost = "\n}\n"
 	)
 
-	act, err := iferrStr(fnPre+fn, len(fnPre)+1+off, errMsg)
+	got, err := iferrStr(fnPre+fn, len(fnPre)+1+off, errMsg)
 	if err != nil {
 		t.Errorf("iferr() is failed: %s for %q", err, fn)
 		return
 	}
-	if !strings.HasPrefix(act, actPre) || !strings.HasSuffix(act, actPost) {
-		t.Errorf("iferr() returns with unexpected prefix or suffix: %q", act)
+	if !strings.HasPrefix(got, actPre) || !strings.HasSuffix(got, actPost) {
+		t.Errorf("iferr() returns with unexpected prefix or suffix: %q", got)
 		return
 	}
-	act = act[len(actPre) : len(act)-len(actPost)]
-	if act != exp {
-		t.Errorf("iferr() returns unexpected: actual=%q expect=%q", act, exp)
+	got = got[len(actPre) : len(got)-len(actPost)]
+	if got != want {
+		t.Errorf("iferr() returns unexpected: want=%q got=%q", want, got)
 		return
 	}
 }
@@ -50,8 +53,22 @@ func TestIferr(t *testing.T) {
 	iferrOK(t, `(bool, error)`, 0, `err`, `false, err`)
 	iferrOK(t, `(foo, error)`, 0, `err`, `foo{}, err`)
 	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
-	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
-	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
-	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
 	iferrOK(t, `(*foo, error)`, 0, `fmt.Errorf("failed to %v", err)`, `nil, fmt.Errorf("failed to %v", err)`)
+}
+
+func TestNumericTypes(t *testing.T) {
+	// See https://go.dev/ref/spec#Numeric_types
+	for _, typ := range []string{
+		"uint", "uint8", "uint16", "uint32", "uint64",
+		"int", "int8", "int16", "int32", "int64",
+		"float32", "float64",
+		"complex64", "complex128",
+		"byte",
+		"rune",
+		"time.Duration",
+	} {
+		t.Run(typ, func(t *testing.T) {
+			iferrOK(t, fmt.Sprintf(`(%s, error)`, typ), 0, `err`, `0, err`)
+		})
+	}
 }
