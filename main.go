@@ -18,17 +18,18 @@ const noname = "(no name)"
 var dbgLog *log.Logger
 
 var isNum = map[string]struct{}{
-	"int":     {},
-	"int16":   {},
-	"int32":   {},
-	"int64":   {},
-	"uint":    {},
-	"uint16":  {},
-	"uint32":  {},
-	"uint64":  {},
-	"float":   {},
-	"float32": {},
-	"float64": {},
+	"int":           {},
+	"int16":         {},
+	"int32":         {},
+	"int64":         {},
+	"uint":          {},
+	"uint16":        {},
+	"uint32":        {},
+	"uint64":        {},
+	"float":         {},
+	"float32":       {},
+	"float64":       {},
+	"time.Duration": {},
 }
 
 func logd(s string, args ...interface{}) {
@@ -152,7 +153,7 @@ func writeIferr(w io.Writer, types []ast.Expr, errMsg string) error {
 			bb.WriteString(`""`)
 			continue
 		}
-		if ts == "interface{}" {
+		if ts == "interface{}" || ts == "any" {
 			bb.WriteString(`nil`)
 			continue
 		}
@@ -174,6 +175,10 @@ func writeIferr(w io.Writer, types []ast.Expr, errMsg string) error {
 		}
 		if strings.HasPrefix(ts, "*") {
 			bb.WriteString("nil")
+			continue
+		}
+		if ts == "time.Time" {
+			bb.WriteString("time.Time{}")
 			continue
 		}
 		// treat it as an interface when type name has "."

@@ -42,8 +42,11 @@ func iferrOK(t *testing.T, fn string, off int, errMsg, exp string) {
 
 func TestIferr(t *testing.T) {
 	iferrOK(t, `(interface{}, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(any, error)`, 0, `err`, `nil, err`)
 	iferrOK(t, `(map[string]struct{}, error)`, 0, `err`, `nil, err`)
 	iferrOK(t, `(chan bool, error)`, 0, `err`, `nil, err`)
+	iferrOK(t, `(time.Duration, error)`, 0, `err`, `0, err`)
+	iferrOK(t, `(time.Time, error)`, 0, `err`, `time.Time{}, err`)
 	iferrOK(t, `(bool, error)`, 0, `err`, `false, err`)
 	iferrOK(t, `(foo, error)`, 0, `err`, `foo{}, err`)
 	iferrOK(t, `(*foo, error)`, 0, `err`, `nil, err`)
